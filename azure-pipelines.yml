@@ -39,5 +39,7 @@ stages:
     - task: AzureWebAppContainer@1
       inputs:
        appName: $(WebAppName)
-       azureSubscription: 'Resource Manager - Tailspin - Space Game'
+       azureSubscription: 'MAIC - TEK Experts CR - v-doort - Group#1(9e9e1a84-e844-4b3c-a731-23d189b43a2e)'
        imageName: $(RegistryName)/$(webRepository):$(build.buildId)
+
+       
