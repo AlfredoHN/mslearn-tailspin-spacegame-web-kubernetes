@@ -1,45 +1,21 @@
-trigger: 
-  - 'master'
+trigger:
+- master
 
-variables:
-  buildConfiguration: 'Release'
-  webRepository: 'web'
-  tag: '$(Build.BuildId)'
+pool:
+  vmImage: 'ubuntu18.04'
 
-stages:
-- stage: 'Build'
-  displayName: 'Build and push'
-  jobs:  
-  - job: 'Build'
-    displayName: 'Build job'
-    pool:
-      vmImage: 'ubuntu-18.04'
-    steps:
-    - task: Docker@2
-      displayName: 'Build and push the image to container registry'
-      inputs:
-        command: buildAndPush
-        buildContext: $(Build.Repository.LocalPath)
-        repository: $(webRepository)
-        dockerfile: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web/Dockerfile'
-        containerRegistry: 'docCon'
-        tags: |
-          $(tag)
-- stage: 'Deploy'
-  displayName: 'Deploy the container'
-  dependsOn: Build
-  jobs:
-  - job: 'Deploy'
-    displayName: 'Deploy job'
-    pool:
-      vmImage: 'ubuntu-18.04'
-    variables:
-    - group: Release
-    steps:
-    - task: AzureWebAppContainer@1
-      inputs:
-       appName: $(WebAppName)
-       azureSubscription: 'MAIC - TEK Experts CR - v-doort - Group#1(9e9e1a84-e844-4b3c-a731-23d189b43a2e)'
-       imageName: $(RegistryName)/$(webRepository):$(build.buildId)
+steps:
+# - task: Kubernetes@1
+#   inputs:
+#     connectionType: 'Kubernetes Service Connection'
+#     kubernetesServiceEndpoint: 'criskubeconfigsercon'
+#     command: 'login'
 
-       
+- task: Kubernetes@1
+  inputs:
+    connectionType: 'Kubernetes Service Connection'
+    kubernetesServiceEndpoint: 'kubeCon'
+    command: 'get'
+    arguments: 'pods'
+    secretType: 'generic'
+    secretName: 'secret'
