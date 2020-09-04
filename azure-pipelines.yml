@@ -1,12 +1,10 @@
-trigger:
-- 'master'
+trigger: 
+  - 'master'
 
 variables:
   buildConfiguration: 'Release'
-  leaderboardRepository: 'leaderboard'
   webRepository: 'web'
   tag: '$(Build.BuildId)'
-  imagePullSecret: 'secret'
 
 stages:
 - stage: 'Build'
@@ -16,7 +14,6 @@ stages:
     displayName: 'Build job'
     pool:
       vmImage: 'ubuntu-18.04'
-    
     steps:
     - task: Docker@2
       displayName: 'Build and push the image to container registry'
@@ -28,19 +25,6 @@ stages:
         containerRegistry: 'docCon'
         tags: |
           $(tag)
-    - task: Docker@2
-      displayName: 'Build and push the leaderboard image to container registry'
-      inputs:
-        command: buildAndPush
-        buildContext: $(Build.Repository.LocalPath)
-        repository: $(leaderboardRepository)
-        dockerfile: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.LeaderboardContainer/Dockerfile'
-        containerRegistry: 'docCon'
-        tags: |
-          $(tag)
-    - publish: '$(Build.SourcesDirectory)/manifests'
-      artifact: manifests
-
 - stage: 'Deploy'
   displayName: 'Deploy the container'
   dependsOn: Build
@@ -49,38 +33,11 @@ stages:
     displayName: 'Deploy job'
     pool:
       vmImage: 'ubuntu-18.04'
-      environment: 'spike.default'
     variables:
     - group: Release
-
     steps:
     - task: AzureWebAppContainer@1
       inputs:
        appName: $(WebAppName)
-       azureSubscription: 'spike-AlfredAKS-default-1599234888733'
+       azureSubscription: 'Resource Manager - Tailspin - Space Game'
        imageName: $(RegistryName)/$(webRepository):$(build.buildId)
-
-    - task: KubernetesManifest@0
-      displayName: Create imagePullSecret
-      inputs:
-        action: createSecret
-        secretName: $(imagePullSecret)
-        dockerRegistryEndpoint: 'docCon'
-        kubernetesServiceConnection: 'kubeCon'
-        namespace: 'default'
-        arguments: 
-
-    - task: KubernetesManifest@0
-      displayName: Deploy to Kubernetes cluster
-      inputs:
-        action: deploy
-        kubernetesServiceConnection: 'kubeCon'
-        namespace: 'default'
-        manifests: |
-          $(Pipeline.Workspace)/manifests/deployment.yml
-          $(Pipeline.Workspace)/manifests/service.yml
-        imagePullSecrets: |
-          $(imagePullSecret)
-        containers: |
-          $(RegistryName)/$(webRepository):$(tag)
-          $(RegistryName)/$(leaderboardRepository):$(tag)
