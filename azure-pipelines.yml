@@ -1,21 +1,85 @@
-trigger:
-- master
+trigger: 
+- mastern
 
-pool:
-  vmImage: 'ubuntu-18.04'
+variables:
+  buildConfiguration: 'Release'
+  leaderboardRepository: 'leaderboard'
+  webRepository: 'web'
+  tag: '$(Build.BuildId)'
+  imagePullSecret: 'secret'
+  namespace: 'default'
+  system.debug: true
 
-steps:
-# - task: Kubernetes@1
-#   inputs:
-#     connectionType: 'Kubernetes Service Connection'
-#     kubernetesServiceEndpoint: 'criskubeconfigsercon'
-#     command: 'login'
+stages:
+- stage: 'Build'
+  displayName: 'Build and push'
+  jobs:  
+  - job: 'Build'
+    displayName: 'Build job'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+    - task: Docker@2
+      displayName: 'Build and push the image to container registry'
+      inputs:
+        command: buildAndPush
+        buildContext: $(Build.Repository.LocalPath)
+        repository: $(webRepository)
+        dockerfile: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.Web/Dockerfile'
+        containerRegistry: 'docCon'
+        tags: |
+          $(tag)
+    - task: Docker@2
+      displayName: 'Build and push the leaderboard image to container registry'
+      inputs:
+        command: buildAndPush
+        buildContext: $(Build.Repository.LocalPath)
+        repository: $(leaderboardRepository)
+        dockerfile: '$(Build.SourcesDirectory)/Tailspin.SpaceGame.LeaderboardContainer/Dockerfile'
+        containerRegistry: 'docCon'
+        tags: |
+          $(tag)
+    - publish: '$(Build.SourcesDirectory)/manifests'
+      artifact: manifests
 
-- task: Kubernetes@1
-  inputs:
-    connectionType: 'Kubernetes Service Connection'
-    kubernetesServiceEndpoint: 'kubeCon'
-    command: 'get'
-    arguments: 'pods'
-    secretType: 'generic'
-    secretName: 'secret'
+- stage: 'Deploy'
+  displayName: 'Deploy the containers'
+  dependsOn: Build
+  jobs:
+  - deployment: Deploy
+    displayName: Deploy
+    pool:
+      vmImage: 'ubuntu-18.04'
+    environment: 'spike.default'
+    variables:
+    - group: Kubernetes
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: manifests
+
+          - task: KubernetesManifest@0
+            displayName: Create imagePullSecret
+            inputs:
+              action: createSecret
+              secretName: $(imagePullSecret)
+              dockerRegistryEndpoint: 'docCon'
+              kubernetesServiceConnection: 'kubeCon'
+              namespace: $(namespace)
+
+          - task: KubernetesManifest@0
+            displayName: Deploy to Kubernetes cluster
+            inputs:
+              action: deploy
+              kubernetesServiceConnection: 'kubeCon'
+              namespace: $(namespace)
+              manifests: |
+                $(Pipeline.Workspace)/manifests/deployment.yml
+                $(Pipeline.Workspace)/manifests/service.yml
+              imagePullSecrets: |
+                $(imagePullSecret)
+              containers: |
+                tailspinspacegame9781.azurecr.io/web:4323
+                $(RegistryName)/$(leaderboardRepository):$(tag)
