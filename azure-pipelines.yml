@@ -1,5 +1,5 @@
 trigger: 
-- master
+- none
 
 variables:
   buildConfiguration: 'Release'
@@ -81,5 +81,5 @@ stages:
               imagePullSecrets: |
                 $(imagePullSecret)
               containers: |
-                alfredregistry.azurecr.io/web:$(tag)
+                alfredregistry.azurecr.io/web:392
                 $(RegistryName)/$(leaderboardRepository):$(tag)
