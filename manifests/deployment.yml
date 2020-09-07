@@ -14,9 +14,9 @@ spec:
     spec:
       containers:
         - name: web
-          image: alfredregistry.azurecr.io/web
+          image: alfredregistry.azurecr.io/web:392
           ports:
-          - containerPort: 8080
+          - containerPort: 80
 ---
 apiVersion : apps/v1
 kind: Deployment
@@ -34,6 +34,6 @@ spec:
     spec:
       containers:
         - name: leaderboard
-          image: alfredregistry.azurecr.io/leaderboard
+          image: alfredregistry.azurecr.io/leaderboard:393
           ports:
-          - containerPort: 8080
+          - containerPort: 80
